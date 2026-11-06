@@ -145,6 +145,17 @@
                 android:layout_marginTop="14dp"
                 android:text="Приложения, над которыми показывать виджет (пакеты через запятую)" />
 
+            <TextView
+                android:id="@+id/btnFindApps"
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/btn_bg"
+                android:gravity="center"
+                android:text="Найти приложения Яндекса на телефоне"
+                android:textColor="@color/accent"
+                android:textSize="12sp" />
+
             <EditText
                 android:id="@+id/inputPackages"
                 android:layout_width="match_parent"

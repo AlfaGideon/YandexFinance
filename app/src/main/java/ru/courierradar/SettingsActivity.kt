@@ -5,6 +5,7 @@ import android.widget.EditText
 import androidx.appcompat.widget.SwitchCompat
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import ru.courierradar.data.Prefs
 import ru.courierradar.data.StatsRepo
@@ -49,10 +50,59 @@ class SettingsActivity : AppCompatActivity() {
             finish()
         }
 
+        findViewById<TextView>(R.id.btnFindApps).setOnClickListener { pickCourierApps() }
+
         findViewById<TextView>(R.id.btnReset).setOnClickListener {
             stats.reset()
             Toast.makeText(this, "Статистика сброшена", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun pickCourierApps() {
+        val pm = packageManager
+        val installed = pm.getInstalledApplications(0)
+        val candidates = installed
+            .filter { it.packageName != packageName }
+            .filter { app ->
+                val label = pm.getApplicationLabel(app).toString()
+                app.packageName.contains("yandex", true) ||
+                    app.packageName.contains("яндекс", true) ||
+                    label.contains("яндекс", true) ||
+                    label.contains("yandex", true)
+            }
+            .sortedBy { pm.getApplicationLabel(it).toString().lowercase() }
+
+        if (candidates.isEmpty()) {
+            Toast.makeText(this, "Приложения Яндекса не найдены", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val titles = candidates
+            .map { "${pm.getApplicationLabel(it)}  ·  ${it.packageName}" }
+            .toTypedArray()
+        val current = prefs.monitoredPackages()
+        val checked = candidates.map { current.contains(it.packageName) }.toBooleanArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Под какими приложениями показывать виджет")
+            .setMultiChoiceItems(titles, checked) { _, which, isChecked -> checked[which] = isChecked }
+            .setPositiveButton("Сохранить") { _, _ ->
+                val detected = candidates.map { it.packageName }.toSet()
+                val picked = candidates.filterIndexed { index, _ -> checked[index] }.map { it.packageName }
+                val manual = current - detected
+                val result = picked + manual
+                val value = if (result.isEmpty()) Prefs.DEFAULT_PACKAGES else result.joinToString(", ")
+                prefs.monitoredPackagesRaw = value
+                inputPackages.setText(value)
+                Toast.makeText(
+                    this,
+                    "Выбрано приложений: ${picked.size + manual.size}",
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 
     private fun fill() {

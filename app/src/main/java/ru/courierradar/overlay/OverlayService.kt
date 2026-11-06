@@ -84,7 +84,7 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
         stats = StatsRepo(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         createChannel()
-        startForeground(NOTIF_ID, buildNotification())
+        runCatching { startForeground(NOTIF_ID, buildNotification()) }
         Signals.addForeground(this)
         Signals.addOrder(this)
     }

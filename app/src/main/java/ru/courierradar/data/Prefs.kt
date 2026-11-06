@@ -75,6 +75,7 @@ class Prefs(context: Context) {
 
     companion object {
         const val DEFAULT_PACKAGES =
-            "ru.yandex.taxi, ru.yandex.ytaxi, ru.yandex.taxi.courier, ru.yandex.pro, ru.yandex.lavka.courier"
+            "ru.yandex.taxi, ru.yandex.ytaxi, ru.yandex.taxi.courier, ru.yandex.taxi.driver, " +
+                "ru.yandex.pro, ru.yandex.lavka.courier, com.yandex.courier, ru.yandex.go.courier"
     }
 }
