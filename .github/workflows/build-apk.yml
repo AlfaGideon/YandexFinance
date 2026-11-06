@@ -89,7 +89,7 @@ jobs:
           exit 0
 
       - name: Publish release with APK
-        if: success()
+        if: success() && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message || '', '[release]'))
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
