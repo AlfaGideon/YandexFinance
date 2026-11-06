@@ -68,12 +68,25 @@ jobs:
         if: success()
         id: inspect
         run: |
+          set +e
           apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
           echo "apk=$apk" >> "$GITHUB_OUTPUT"
-          chmod +x "$ANDROID_HOME"/build-tools/34.0.0/aapt
-          "$ANDROID_HOME"/build-tools/34.0.0/aapt dump badging "$apk" | grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|application-label:)" > badging.txt || true
-          cat badging.txt
-          unzip -l "$apk" | grep -E "classes.*dex|AndroidManifest" || true
+          ls -l "$apk"
+          bt="$ANDROID_HOME/build-tools/34.0.0"
+          : > badging.txt
+          for tool in aapt aapt2; do
+            chmod +x "$bt/$tool" 2>/dev/null
+            if [ -x "$bt/$tool" ] && [ ! -s badging.txt ]; then
+              "$bt/$tool" dump badging "$apk" > badging-full.txt 2>/dev/null
+              grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|application-label:)" badging-full.txt > badging.txt 2>/dev/null
+            fi
+          done
+          if [ ! -s badging.txt ]; then
+            echo "(aapt недоступен в образе)" > badging.txt
+          fi
+          head -n 40 badging.txt
+          unzip -l "$apk" | grep -E "classes.*dex|AndroidManifest.xml" || true
+          exit 0
 
       - name: Publish release with APK
         if: success()
