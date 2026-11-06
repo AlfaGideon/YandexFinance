@@ -56,10 +56,53 @@ jobs:
           git commit -m "ci: build log [skip ci]" || true
           git push || true
 
-      - name: Upload APK
+      - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: courierradar-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Inspect APK
+        if: success()
+        id: inspect
+        run: |
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          echo "apk=$apk" >> "$GITHUB_OUTPUT"
+          chmod +x "$ANDROID_HOME"/build-tools/34.0.0/aapt
+          "$ANDROID_HOME"/build-tools/34.0.0/aapt dump badging "$apk" | grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|application-label:)" > badging.txt || true
+          cat badging.txt
+          unzip -l "$apk" | grep -E "classes.*dex|AndroidManifest" || true
+
+      - name: Publish release with APK
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk="${{ steps.inspect.outputs.apk }}"
+          tag="v1.0.${{ github.run_number }}"
+          size=$(du -h "$apk" | cut -f1)
+          {
+            echo "## КурьерРадар"
+            echo ""
+            echo "Плавающий виджет с расчётом чистой суммы заказа поверх Яндекс Про."
+            echo ""
+            echo "- APK: \`app-debug.apk\` ($size), подписан debug-ключом — устанавливается на телефон как обычное приложение."
+            echo "- Коммит: ${{ github.sha }}"
+            echo ""
+            echo "### Как установить"
+            echo "1. Скачай \`app-debug.apk\` с этого релиза (открывай ссылку сразу с телефона)."
+            echo "2. Разреши установку из неизвестных источников."
+            echo "3. Выдай разрешения: «Поверх других приложений» + «Спец. возможности» (и по желанию «Доступ к данным об использовании»)."
+            echo "4. Включи тумблер «Радар включён» и открой Яндекс Про."
+            echo ""
+            echo "### Содержимое APK"
+            echo '```'
+            cat badging.txt || true
+            echo '```'
+          } > notes.md
+          gh release create "$tag" "$apk" \
+            --title "КурьерРадар $tag" \
+            --notes-file notes.md \
+            --latest

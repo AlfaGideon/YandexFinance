@@ -9,3 +9,6 @@ captures/
 *.apk
 *.aab
 .DS_Store
+
+# CI debug log
+build-log.txt
