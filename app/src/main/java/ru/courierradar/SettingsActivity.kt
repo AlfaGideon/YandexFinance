@@ -2,7 +2,7 @@ package ru.courierradar
 
 import android.os.Bundle
 import android.widget.EditText
-import android.widget.SwitchCompat
+import androidx.appcompat.widget.SwitchCompat
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
