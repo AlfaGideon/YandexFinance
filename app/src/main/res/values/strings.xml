@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">КурьерРадар</string>
+    <string name="settings_title">Настройки расчёта</string>
+    <string name="accessibility_label">КурьерРадар — показать сумму заказа</string>
+    <string name="accessibility_description">Служба читает текст карточки заказа в приложении курьера, чтобы посчитать чистый доход, цену за километр и за час. Данные не покидают телефон.</string>
+    <string name="notification_channel">Плавающий виджет</string>
+    <string name="notification_title">КурьерРадар активен</string>
+    <string name="notification_text">Виджет появится над приложением курьера</string>
+</resources>

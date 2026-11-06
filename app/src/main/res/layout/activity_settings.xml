@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Настройки расчёта"
+            android:textColor="@color/text"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Пороги и расходы — главное, что влияет на вердикт «брать / скип»."
+            android:textColor="@color/muted"
+            android:textSize="12sp" />
+
+        <TextView
+            style="@style/SectionTitle"
+            android:text="ПОРОГИ ВЫГОДЫ" />
+
+        <LinearLayout style="@style/CardBox">
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Минимум ₽/км чистыми" />
+
+            <EditText
+                android:id="@+id/inputMinPerKm"
+                style="@style/NumField" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="Минимум ₽/час чистыми" />
+
+            <EditText
+                android:id="@+id/inputMinPerHour"
+                style="@style/NumField" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/SectionTitle"
+            android:text="РАСХОДЫ НА МАРШРУТ" />
+
+        <LinearLayout style="@style/CardBox">
+
+            <TextView
+                style="@style/FieldLabel"
+                android:text="Расход топлива, л / 100 км" />
+
+            <EditText
+                android:id="@+id/inputFuel"
+                style="@style/NumField" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="Цена топлива, ₽ / литр" />
+
+            <EditText
+                android:id="@+id/inputFuelPrice"
+                style="@style/NumField" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="Амортизация, ₽ / км" />
+
+            <EditText
+                android:id="@+id/inputWear"
+                style="@style/NumField" />
+
+            <TextView
+                style="@style/FieldLabel"
+                android:layout_marginTop="10dp"
+                android:text="Комиссия сервиса, %" />
+
+            <EditText
+                android:id="@+id/inputCommission"
+                style="@style/NumField" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Считать обратный путь (×2 км)"
+                    android:textColor="@color/text"
+                    android:textSize="13sp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchReturn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            style="@style/SectionTitle"
+            android:text="ПОВЕДЕНИЕ ВИДЖЕТА" />
+
+        <LinearLayout style="@style/CardBox">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Вибрировать на невыгодный заказ"
+                    android:textColor="@color/text"
+                    android:textSize="13sp" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchVibrate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/FieldLabel"
+                android:layout_marginTop="14dp"
+                android:text="Приложения, над которыми показывать виджет (пакеты через запятую)" />
+
+            <EditText
+                android:id="@+id/inputPackages"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/input_bg"
+                android:gravity="top|start"
+                android:inputType="textMultiLine"
+                android:padding="10dp"
+                android:textColor="@color/text"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/btn_primary_bg"
+            android:gravity="center"
+            android:text="Сохранить"
+            android:textColor="@color/text"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/btnReset"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/btn_bg"
+            android:gravity="center"
+            android:text="Сбросить статистику"
+            android:textColor="@color/muted"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp"
+            android:lineSpacingExtra="3dp"
+            android:text="КурьерРадар не подключён к API сервиса и не меняет сумму заказа. Он читает то, что видно на экране карточки, вычитает твои расходы и показывает реальный заработок. Если карточка свёрстана нестандартно — сумма не определится, посчитай вручную в калькуляторе."
+            android:textColor="@color/muted"
+            android:textSize="11sp" />
+    </LinearLayout>
+</ScrollView>

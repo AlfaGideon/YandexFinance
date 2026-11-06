@@ -1,0 +1,12 @@
+<resources>
+    <color name="bg">#0B0E14</color>
+    <color name="card">#161B26</color>
+    <color name="stroke">#26303F</color>
+    <color name="text">#E9EEF7</color>
+    <color name="muted">#8C96A8</color>
+    <color name="good">#46D98A</color>
+    <color name="warn">#F7C24A</color>
+    <color name="bad">#F9736B</color>
+    <color name="accent">#5AA9FF</color>
+    <color name="icon_bg">#0B0E14</color>
+</resources>
