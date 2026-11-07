@@ -1,6 +1,8 @@
 package ru.courierradar
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,6 +16,7 @@ import android.text.TextUtils
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.app.ActivityCompat
@@ -27,6 +30,7 @@ import ru.courierradar.detect.AppWatcher
 import ru.courierradar.detect.CourierAccessibilityService
 import ru.courierradar.overlay.OverlayService
 import ru.courierradar.signals.Signals
+import ru.courierradar.util.AccessibilityKeeper
 import ru.courierradar.util.Format
 
 class MainActivity : AppCompatActivity() {
@@ -110,6 +114,8 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<TextView>(R.id.btnShowNow).setOnClickListener { showWidgetNow() }
         findViewById<TextView>(R.id.btnHideNow).setOnClickListener { OverlayService.hideNow(this) }
+        findViewById<TextView>(R.id.btnBattery).setOnClickListener { requestBatteryExemption() }
+        findViewById<TextView>(R.id.btnAutoRestore).setOnClickListener { onAutoRestoreClick() }
         findViewById<TextView>(R.id.btnCalc).setOnClickListener { calculate() }
         findViewById<TextView>(R.id.btnSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -122,6 +128,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         switchRadar.isChecked = prefs.radarEnabled
+        autoRestoreIfPossible()
         refreshStatus()
         renderStats()
         diagHandler.removeCallbacks(diagTicker)
@@ -186,6 +193,20 @@ class MainActivity : AppCompatActivity() {
             }
         )
         rows.add(if (prefs.overlayAlways) "Режим «показывать всегда»: вкл" else "Режим «показывать всегда»: выкл")
+        rows.add(
+            if (AccessibilityKeeper.isIgnoringBatteryOptimizations(this)) {
+                "✓ Батарея: без ограничений (процесс не так часто убивают)"
+            } else {
+                "— Батарея: ограничена — нажми «Работа в фоне»"
+            }
+        )
+        rows.add(
+            if (AccessibilityKeeper.canSelfRestore(this)) {
+                "✓ Автовосстановление спец. возможностей: включено (ADB-право выдано)"
+            } else {
+                "— Автовосстановление: нужна одна ADB-команда (кнопка «Автовосстановление»)"
+            }
+        )
 
         if (!accEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             rows.add("")
@@ -249,19 +270,65 @@ class MainActivity : AppCompatActivity() {
     private fun statusLine(title: String, ok: Boolean): String =
         if (ok) "$title  ✓" else "$title  —"
 
-    private fun isAccessibilityEnabled(): Boolean {
-        val expected = ComponentName(this, CourierAccessibilityService::class.java)
-        val enabled = Settings.Secure.getString(
-            contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        ) ?: return false
-        val splitter = TextUtils.SimpleStringSplitter(':')
-        splitter.setString(enabled)
-        for (entry in splitter) {
-            val parsed = ComponentName.unflattenFromString(entry) ?: continue
-            if (parsed == expected) return true
+    private fun isAccessibilityEnabled(): Boolean = AccessibilityKeeper.isEnabled(this)
+
+    private fun autoRestoreIfPossible() {
+        if (!prefs.radarEnabled) return
+        if (AccessibilityKeeper.isEnabled(this)) return
+        if (!AccessibilityKeeper.canSelfRestore(this)) return
+        AccessibilityKeeper.restore(this)
+    }
+
+    private fun requestBatteryExemption() {
+        if (AccessibilityKeeper.isIgnoringBatteryOptimizations(this)) {
+            toast("Уже разрешено: приложение не ограничено в фоне")
+            return
         }
-        return false
+        runCatching { startActivity(AccessibilityKeeper.batteryRequestIntent(this)) }
+            .onFailure {
+                runCatching {
+                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                }
+            }
+    }
+
+    private fun onAutoRestoreClick() {
+        if (AccessibilityKeeper.canSelfRestore(this)) {
+            val ok = AccessibilityKeeper.restore(this)
+            toast(
+                if (ok) "Спец. возможности восстановлены"
+                else "Не получилось — включи вручную в настройках"
+            )
+            refreshStatus()
+            updateDiagnostics()
+            return
+        }
+
+        val command = "adb shell pm grant $packageName ${AccessibilityKeeper.WRITE_SECURE_SETTINGS}"
+        AlertDialog.Builder(this)
+            .setTitle("Автовосстановление спец. возможностей")
+            .setMessage(
+                "Android снимает разрешение, когда система убивает процесс (в том числе при " +
+                    "«Очистить всё»). Одноразовая ADB-команда даёт приложению право вернуть " +
+                    "разрешение самому — через ~7 секунд после очистки всё снова работает.\n\n" +
+                    command + "\n\n" +
+                    "Как выполнить: подключи телефон по USB с включённой отладкой и запусти " +
+                    "команду на компьютере. Без компьютера можно использовать приложение " +
+                    "Shizuku + любой ADB-терминал.\n\n" +
+                    "Без ADB остаётся только включать вручную в настройках."
+            )
+            .setPositiveButton("Скопировать команду") { _, _ -> copyCommand(command) }
+            .setNeutralButton("Настройки") { _, _ ->
+                runCatching { startActivity(AccessibilityKeeper.settingsIntent()) }
+            }
+            .setNegativeButton("Закрыть", null)
+            .show()
+    }
+
+    private fun copyCommand(command: String) {
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        clipboard?.setPrimaryClip(ClipData.newPlainText("adb", command))
+        toast("Команда скопирована")
     }
 
     private fun calculate() {

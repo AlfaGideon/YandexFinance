@@ -31,6 +31,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import ru.courierradar.MainActivity
 import ru.courierradar.R
@@ -42,6 +43,7 @@ import ru.courierradar.data.StatsRepo
 import ru.courierradar.detect.AppWatcher
 import ru.courierradar.parse.ParsedOrder
 import ru.courierradar.signals.Signals
+import ru.courierradar.util.AccessibilityKeeper
 import ru.courierradar.util.Format
 import ru.courierradar.util.dp
 import kotlin.math.abs
@@ -77,6 +79,8 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
     private var hiddenByUser = false
     private var hideJob: Job? = null
     private var activePackage: String? = null
+    private var watchdogStarted = false
+    private var lastLostNotifyAt = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -84,6 +88,7 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
         stats = StatsRepo(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         createChannel()
+        createAlertChannel()
         runCatching { startForeground(NOTIF_ID, buildNotification()) }
         Signals.addForeground(this)
         Signals.addOrder(this)
@@ -91,6 +96,7 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         watcher = watcher ?: AppWatcher(this) { pkg -> onForeground(pkg) }.also { it.start(scope) }
+        startAccessibilityWatchdog()
         when (intent?.action) {
             ACTION_SHOW_NOW -> {
                 hiddenByUser = false
@@ -439,6 +445,63 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
         }
     }
 
+    // ------------------------------------------------------------------ watchdog
+
+    /**
+     * Android (and aggressive ROM cleaners) revoke the accessibility permission when the
+     * app process gets killed. As soon as the service is back we notice the permission is
+     * gone and either restore it silently (needs a one-time ADB grant) or ask the user.
+     */
+    private fun startAccessibilityWatchdog() {
+        if (watchdogStarted) return
+        watchdogStarted = true
+        scope.launch {
+            while (isActive) {
+                delay(WATCHDOG_MS)
+                if (!prefs.radarEnabled) continue
+                if (AccessibilityKeeper.isEnabled(this@OverlayService)) continue
+
+                val restored = AccessibilityKeeper.canSelfRestore(this@OverlayService) &&
+                    AccessibilityKeeper.restore(this@OverlayService)
+
+                if (restored) {
+                    lastLostNotifyAt = 0L
+                    Toast.makeText(
+                        this@OverlayService,
+                        "Спец. возможности восстановлены автоматически",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                } else {
+                    notifyAccessibilityLost()
+                }
+            }
+        }
+    }
+
+    private fun notifyAccessibilityLost() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastLostNotifyAt < LOST_NOTIFY_INTERVAL_MS) return
+        lastLostNotifyAt = now
+
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        val intent = PendingIntent.getActivity(
+            this,
+            2,
+            AccessibilityKeeper.settingsIntent(),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_radar)
+            .setContentTitle("Спец. возможности отключились")
+            .setContentText("Нажми, чтобы вернуть чтение карточки заказа")
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(intent)
+            .build()
+
+        runCatching { manager.notify(ALERT_NOTIF_ID, notification) }
+    }
+
     // ------------------------------------------------------------------ notification
 
     private fun createChannel() {
@@ -452,6 +515,20 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
         ).apply {
             setShowBadge(false)
             description = getString(R.string.notification_text)
+        }
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun createAlertChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        if (manager.getNotificationChannel(ALERT_CHANNEL_ID) != null) return
+        val channel = NotificationChannel(
+            ALERT_CHANNEL_ID,
+            "Предупреждения",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = "Сообщает, когда Android отключил службу спец. возможностей"
         }
         manager.createNotificationChannel(channel)
     }
@@ -476,8 +553,12 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
 
     companion object {
         private const val CHANNEL_ID = "radar_overlay"
+        private const val ALERT_CHANNEL_ID = "radar_alerts"
         private const val NOTIF_ID = 4711
+        private const val ALERT_NOTIF_ID = 4712
         private const val HIDE_DELAY_MS = 1200L
+        private const val WATCHDOG_MS = 7_000L
+        private const val LOST_NOTIFY_INTERVAL_MS = 5 * 60_000L
 
         fun start(context: Context) {
             val intent = Intent(context, OverlayService::class.java)
