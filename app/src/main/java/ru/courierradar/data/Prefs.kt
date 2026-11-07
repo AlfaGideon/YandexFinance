@@ -41,6 +41,10 @@ class Prefs(context: Context) {
         get() = sp.getFloat("min_per_hour", 450.0f)
         set(value) = sp.edit().putFloat("min_per_hour", value).apply()
 
+    var matchAllYandex: Boolean
+        get() = sp.getBoolean("match_all_yandex", true)
+        set(value) = sp.edit().putBoolean("match_all_yandex", value).apply()
+
     var overlayAlways: Boolean
         get() = sp.getBoolean("overlay_always", false)
         set(value) = sp.edit().putBoolean("overlay_always", value).apply()
@@ -61,6 +65,15 @@ class Prefs(context: Context) {
         get() = sp.getString("packages", DEFAULT_PACKAGES) ?: DEFAULT_PACKAGES
         set(value) = sp.edit().putString("packages", value).apply()
 
+    /** Should the widget be shown over this package? */
+    fun isMonitored(packageName: String): Boolean {
+        if (packageName == "android") return false
+        if (monitoredPackagesRaw.contains(packageName)) return true
+        if (monitoredPackages().contains(packageName)) return true
+        return matchAllYandex &&
+            (packageName.startsWith("ru.yandex") || packageName.startsWith("com.yandex"))
+    }
+
     fun monitoredPackages(): Set<String> = monitoredPackagesRaw
         .split(',', ';', '\n')
         .map { it.trim() }
@@ -79,7 +92,8 @@ class Prefs(context: Context) {
 
     companion object {
         const val DEFAULT_PACKAGES =
-            "ru.yandex.taxi, ru.yandex.ytaxi, ru.yandex.taxi.courier, ru.yandex.taxi.driver, " +
-                "ru.yandex.pro, ru.yandex.lavka.courier, com.yandex.courier, ru.yandex.go.courier"
+            "ru.yandex.taximeter, ru.yandex.taximeter.beta, ru.yandex.taxi, ru.yandex.ytaxi, " +
+                "ru.yandex.taxi.courier, ru.yandex.taxi.driver, ru.yandex.pro, " +
+                "ru.yandex.lavka.courier, com.yandex.courier, ru.yandex.go.courier"
     }
 }

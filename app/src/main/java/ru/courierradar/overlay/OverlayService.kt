@@ -123,6 +123,7 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
         Signals.removeOrder(this)
         watcher?.stop()
         watcher = null
+        Signals.overlayVisible = false
         removeOverlay()
         scope.cancel()
         super.onDestroy()
@@ -144,7 +145,7 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
             return
         }
 
-        val monitored = prefs.monitoredPackages().contains(packageName)
+        val monitored = prefs.isMonitored(packageName)
         if (monitored) {
             hideJob?.cancel()
             hideJob = null
@@ -153,6 +154,9 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
             showOverlay()
             render()
         } else {
+            // Вышли из приложения курьера: ручное скрытие больше не действует,
+            // при следующем запуске виджет появится снова.
+            hiddenByUser = false
             activePackage = null
             hideJob?.cancel()
             hideJob = scope.launch {
@@ -213,6 +217,8 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
 
         rootView = view
         params = lp
+        Signals.overlayVisible = true
+        view.post { clampIntoScreen() }
         render()
     }
 
@@ -240,7 +246,25 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
         bubbleRoot?.setOnTouchListener(BubbleTouchListener())
     }
 
+    private fun clampIntoScreen() {
+        val lp = params ?: return
+        val view = rootView ?: return
+        val metrics = resources.displayMetrics
+        val maxX = (metrics.widthPixels - view.width).coerceAtLeast(0)
+        val maxY = (metrics.heightPixels - view.height).coerceAtLeast(0)
+        val newX = lp.x.coerceIn(0, maxX)
+        val newY = lp.y.coerceIn(0, maxY)
+        if (newX != lp.x || newY != lp.y) {
+            lp.x = newX
+            lp.y = newY
+            prefs.overlayX = newX
+            prefs.overlayY = newY
+            runCatching { windowManager.updateViewLayout(view, lp) }
+        }
+    }
+
     private fun removeOverlay() {
+        Signals.overlayVisible = false
         val view = rootView ?: return
         rootView = null
         params = null

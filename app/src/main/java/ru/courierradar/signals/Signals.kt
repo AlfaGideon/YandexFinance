@@ -24,6 +24,9 @@ object Signals {
     var accessibilityConnected: Boolean = false
 
     @Volatile
+    var overlayVisible: Boolean = false
+
+    @Volatile
     var lastForegroundPackage: String = ""
         private set
 

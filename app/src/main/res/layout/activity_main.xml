@@ -261,7 +261,7 @@
                     android:layout_weight="1"
                     android:background="@drawable/btn_bg"
                     android:gravity="center"
-                    android:text="Работа в фоне"
+                    android:text="Батарея"
                     android:textColor="@color/accent"
                     android:textSize="12sp" />
 
@@ -273,7 +273,19 @@
                     android:layout_weight="1"
                     android:background="@drawable/btn_bg"
                     android:gravity="center"
-                    android:text="Автовосстановление"
+                    android:text="Автовозврат"
+                    android:textColor="@color/accent"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/btnAddPackage"
+                    android:layout_width="0dp"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/btn_bg"
+                    android:gravity="center"
+                    android:text="+ Пакет"
                     android:textColor="@color/accent"
                     android:textSize="12sp" />
             </LinearLayout>

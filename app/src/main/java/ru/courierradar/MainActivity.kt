@@ -116,6 +116,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.btnHideNow).setOnClickListener { OverlayService.hideNow(this) }
         findViewById<TextView>(R.id.btnBattery).setOnClickListener { requestBatteryExemption() }
         findViewById<TextView>(R.id.btnAutoRestore).setOnClickListener { onAutoRestoreClick() }
+        findViewById<TextView>(R.id.btnAddPackage).setOnClickListener { addCurrentPackage() }
         findViewById<TextView>(R.id.btnCalc).setOnClickListener { calculate() }
         findViewById<TextView>(R.id.btnSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -129,6 +130,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         switchRadar.isChecked = prefs.radarEnabled
         autoRestoreIfPossible()
+        ensureServiceRunning()
         refreshStatus()
         renderStats()
         diagHandler.removeCallbacks(diagTicker)
@@ -160,7 +162,6 @@ class MainActivity : AppCompatActivity() {
         val live = AppWatcher.foregroundPackage(this)
         val seen = Signals.lastForegroundPackage
         val foreground = live ?: seen.ifEmpty { null }
-        val monitored = prefs.monitoredPackages()
         val order = Signals.lastOrder
 
         val rows = ArrayList<String>(8)
@@ -174,9 +175,12 @@ class MainActivity : AppCompatActivity() {
         )
         rows.add(mark(registered) + "Сервис виджета включён")
         rows.add(
+            if (Signals.overlayVisible) "✓ Виджет сейчас на экране" else "— Виджет не показан (нажми «Показать виджет»)"
+        )
+        rows.add(
             when {
                 foreground == null -> "Приложение на экране: не определено (нужен доступ к данным об использовании)"
-                monitored.contains(foreground) -> "Приложение на экране: $foreground ✓ в списке"
+                prefs.isMonitored(foreground) -> "Приложение на экране: $foreground ✓ в списке"
                 prefs.overlayAlways -> "Приложение на экране: $foreground (режим «всегда» — не важно)"
                 else -> "Приложение на экране: $foreground ✗ нет в списке — добавь в настройках"
             }
@@ -271,6 +275,30 @@ class MainActivity : AppCompatActivity() {
         if (ok) "$title  ✓" else "$title  —"
 
     private fun isAccessibilityEnabled(): Boolean = AccessibilityKeeper.isEnabled(this)
+
+    private fun ensureServiceRunning() {
+        if (!prefs.radarEnabled) return
+        if (!Settings.canDrawOverlays(this)) return
+        runCatching { OverlayService.start(this) }
+    }
+
+    private fun addCurrentPackage() {
+        val pkg = AppWatcher.foregroundPackage(this)
+            ?: Signals.lastForegroundPackage.takeIf { it.isNotEmpty() }
+        if (pkg == null) {
+            toast("Не вижу, какое приложение на экране — дай «Доступ к данным об использовании»")
+            return
+        }
+        val current = prefs.monitoredPackages()
+        if (current.contains(pkg)) {
+            toast("$pkg уже в списке")
+            return
+        }
+        prefs.monitoredPackagesRaw = (current + pkg).joinToString(", ")
+        toast("Добавил $pkg")
+        refreshStatus()
+        updateDiagnostics()
+    }
 
     private fun autoRestoreIfPossible() {
         if (!prefs.radarEnabled) return

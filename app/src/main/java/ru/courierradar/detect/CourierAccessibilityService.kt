@@ -22,22 +22,15 @@ class CourierAccessibilityService : AccessibilityService() {
     private var lastParseAt = 0L
     private var lastHash = 0
 
-    private var monitoredCache: Set<String> = emptySet()
-    private var monitoredCacheAt = 0L
-
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
-        monitoredCache = prefs.monitoredPackages()
-        monitoredCacheAt = SystemClock.uptimeMillis()
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         prefs = Prefs(this)
         Signals.accessibilityConnected = true
-        monitoredCache = prefs.monitoredPackages()
-        monitoredCacheAt = SystemClock.uptimeMillis()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -67,14 +60,7 @@ class CourierAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
-    private fun isMonitored(pkg: String): Boolean {
-        val now = SystemClock.uptimeMillis()
-        if (now - monitoredCacheAt > 5_000) {
-            monitoredCache = prefs.monitoredPackages()
-            monitoredCacheAt = now
-        }
-        return monitoredCache.contains(pkg)
-    }
+    private fun isMonitored(pkg: String): Boolean = prefs.isMonitored(pkg)
 
     private fun maybeParse() {
         val now = SystemClock.uptimeMillis()
