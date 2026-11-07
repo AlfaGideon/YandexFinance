@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.text.TextUtils
 import android.widget.EditText
@@ -24,6 +26,7 @@ import ru.courierradar.data.StatsRepo
 import ru.courierradar.detect.AppWatcher
 import ru.courierradar.detect.CourierAccessibilityService
 import ru.courierradar.overlay.OverlayService
+import ru.courierradar.signals.Signals
 import ru.courierradar.util.Format
 
 class MainActivity : AppCompatActivity() {
@@ -43,6 +46,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvCalcDetails: TextView
     private lateinit var tvToday: TextView
     private lateinit var tvAllTime: TextView
+    private lateinit var tvDiag: TextView
+
+    private val diagHandler = Handler(Looper.getMainLooper())
+    private val diagTicker = object : Runnable {
+        override fun run() {
+            updateDiagnostics()
+            diagHandler.postDelayed(this, 1500L)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         tvCalcDetails = findViewById(R.id.tvCalcDetails)
         tvToday = findViewById(R.id.tvToday)
         tvAllTime = findViewById(R.id.tvAllTime)
+        tvDiag = findViewById(R.id.tvDiag)
 
         switchRadar.isChecked = prefs.radarEnabled
 
@@ -95,6 +108,8 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             }.onFailure { toast("Не удалось открыть настройки доступа к данным об использовании") }
         }
+        findViewById<TextView>(R.id.btnShowNow).setOnClickListener { showWidgetNow() }
+        findViewById<TextView>(R.id.btnHideNow).setOnClickListener { OverlayService.hideNow(this) }
         findViewById<TextView>(R.id.btnCalc).setOnClickListener { calculate() }
         findViewById<TextView>(R.id.btnSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -109,7 +124,77 @@ class MainActivity : AppCompatActivity() {
         switchRadar.isChecked = prefs.radarEnabled
         refreshStatus()
         renderStats()
+        diagHandler.removeCallbacks(diagTicker)
+        diagHandler.post(diagTicker)
     }
+
+    override fun onPause() {
+        diagHandler.removeCallbacks(diagTicker)
+        super.onPause()
+    }
+
+    private fun showWidgetNow() {
+        if (!Settings.canDrawOverlays(this)) {
+            toast("Сначала разреши «Поверх других приложений»")
+            openOverlayPermission()
+            return
+        }
+        prefs.radarEnabled = true
+        switchRadar.isChecked = true
+        OverlayService.showNow(this)
+        toast("Виджет показан — ищи кружок на экране")
+    }
+
+    private fun updateDiagnostics() {
+        val accEnabled = isAccessibilityEnabled()
+        val accAlive = Signals.accessibilityConnected
+        val overlayOk = Settings.canDrawOverlays(this)
+        val registered = prefs.radarEnabled
+        val live = AppWatcher.foregroundPackage(this)
+        val seen = Signals.lastForegroundPackage
+        val foreground = live ?: seen.ifEmpty { null }
+        val monitored = prefs.monitoredPackages()
+        val order = Signals.lastOrder
+
+        val rows = ArrayList<String>(8)
+        rows.add(mark(overlayOk) + "Поверх других приложений")
+        rows.add(
+            when {
+                accEnabled && accAlive -> "✓ Спец. возможности: включены, служба работает"
+                accEnabled -> "! Спец. возможности включены, но служба не подключена — перезагрузи телефон"
+                else -> "— Спец. возможности выключены (см. подсказку ниже)"
+            }
+        )
+        rows.add(mark(registered) + "Сервис виджета включён")
+        rows.add(
+            when {
+                foreground == null -> "Приложение на экране: не определено (нужен доступ к данным об использовании)"
+                monitored.contains(foreground) -> "Приложение на экране: $foreground ✓ в списке"
+                prefs.overlayAlways -> "Приложение на экране: $foreground (режим «всегда» — не важно)"
+                else -> "Приложение на экране: $foreground ✗ нет в списке — добавь в настройках"
+            }
+        )
+        rows.add(
+            if (order != null && Signals.lastOrderAt > 0) {
+                "Последняя карточка: " + listOfNotNull(
+                    order.payout?.let { Format.money(it) },
+                    order.distanceKm?.let { Format.distance(it) },
+                    order.timeMin?.let { Format.minutes(it) },
+                ).joinToString(" · ")
+            } else {
+                "Последняя карточка: пока не распознана"
+            }
+        )
+        rows.add(if (prefs.overlayAlways) "Режим «показывать всегда»: вкл" else "Режим «показывать всегда»: выкл")
+
+        if (!accEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            rows.add("")
+            rows.add("Android 13+: если в спец. возможностях написано «Ограниченные настройки» — Приложения → КурьерРадар → ⋮ → «Разрешить ограниченные настройки».")
+        }
+        tvDiag.text = rows.joinToString("\n")
+    }
+
+    private fun mark(ok: Boolean): String = if (ok) "✓ " else "— "
 
     private fun prefillFromIntent() {
         val sum = intent?.getDoubleExtra(EXTRA_SUM, 0.0) ?: 0.0

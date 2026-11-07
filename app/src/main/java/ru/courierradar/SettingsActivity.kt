@@ -23,6 +23,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var inputCommission: EditText
     private lateinit var switchReturn: SwitchCompat
     private lateinit var switchVibrate: SwitchCompat
+    private lateinit var switchAlways: SwitchCompat
     private lateinit var inputPackages: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,6 +41,7 @@ class SettingsActivity : AppCompatActivity() {
         inputCommission = findViewById(R.id.inputCommission)
         switchReturn = findViewById(R.id.switchReturn)
         switchVibrate = findViewById(R.id.switchVibrate)
+        switchAlways = findViewById(R.id.switchAlways)
         inputPackages = findViewById(R.id.inputPackages)
 
         fill()
@@ -114,6 +116,7 @@ class SettingsActivity : AppCompatActivity() {
         inputCommission.setText(num(prefs.commissionPercent.toDouble()))
         switchReturn.isChecked = prefs.returnTrip
         switchVibrate.isChecked = prefs.vibrateOnCheap
+        switchAlways.isChecked = prefs.overlayAlways
         inputPackages.setText(prefs.monitoredPackagesRaw)
     }
 
@@ -126,6 +129,7 @@ class SettingsActivity : AppCompatActivity() {
         prefs.commissionPercent = read(inputCommission, prefs.commissionPercent.toDouble()).toFloat()
         prefs.returnTrip = switchReturn.isChecked
         prefs.vibrateOnCheap = switchVibrate.isChecked
+        prefs.overlayAlways = switchAlways.isChecked
         val packages = inputPackages.text?.toString()?.trim().orEmpty()
         prefs.monitoredPackagesRaw = packages.ifEmpty { Prefs.DEFAULT_PACKAGES }
     }

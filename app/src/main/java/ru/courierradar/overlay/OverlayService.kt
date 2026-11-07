@@ -91,6 +91,22 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         watcher = watcher ?: AppWatcher(this) { pkg -> onForeground(pkg) }.also { it.start(scope) }
+        when (intent?.action) {
+            ACTION_SHOW_NOW -> {
+                hiddenByUser = false
+                showOverlay()
+                setExpanded(true)
+                render()
+            }
+            ACTION_HIDE_NOW -> {
+                hiddenByUser = true
+                removeOverlay()
+            }
+            else -> if (prefs.overlayAlways) {
+                showOverlay()
+                render()
+            }
+        }
         return START_STICKY
     }
 
@@ -111,6 +127,16 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
     override fun onForeground(packageName: String) {
         if (packageName == this.packageName) return
         if (packageName == "android" || packageName.startsWith("com.android.systemui")) return
+
+        if (prefs.overlayAlways) {
+            hideJob?.cancel()
+            hideJob = null
+            activePackage = packageName
+            if (hiddenByUser) return
+            showOverlay()
+            render()
+            return
+        }
 
         val monitored = prefs.monitoredPackages().contains(packageName)
         if (monitored) {
@@ -461,5 +487,18 @@ class OverlayService : Service(), Signals.ForegroundListener, Signals.OrderListe
         fun stop(context: Context) {
             context.stopService(Intent(context, OverlayService::class.java))
         }
+
+        fun showNow(context: Context) {
+            val intent = Intent(context, OverlayService::class.java).setAction(ACTION_SHOW_NOW)
+            ContextCompat.startForegroundService(context, intent)
+        }
+
+        fun hideNow(context: Context) {
+            val intent = Intent(context, OverlayService::class.java).setAction(ACTION_HIDE_NOW)
+            ContextCompat.startForegroundService(context, intent)
+        }
+
+        const val ACTION_SHOW_NOW = "ru.courierradar.action.SHOW_NOW"
+        const val ACTION_HIDE_NOW = "ru.courierradar.action.HIDE_NOW"
     }
 }

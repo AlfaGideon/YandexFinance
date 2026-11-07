@@ -41,6 +41,10 @@ class Prefs(context: Context) {
         get() = sp.getFloat("min_per_hour", 450.0f)
         set(value) = sp.edit().putFloat("min_per_hour", value).apply()
 
+    var overlayAlways: Boolean
+        get() = sp.getBoolean("overlay_always", false)
+        set(value) = sp.edit().putBoolean("overlay_always", value).apply()
+
     var vibrateOnCheap: Boolean
         get() = sp.getBoolean("vibrate_cheap", true)
         set(value) = sp.edit().putBoolean("vibrate_cheap", value).apply()

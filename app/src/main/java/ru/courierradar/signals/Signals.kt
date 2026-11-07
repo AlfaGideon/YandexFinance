@@ -23,6 +23,18 @@ object Signals {
     @Volatile
     var accessibilityConnected: Boolean = false
 
+    @Volatile
+    var lastForegroundPackage: String = ""
+        private set
+
+    @Volatile
+    var lastOrder: ParsedOrder? = null
+        private set
+
+    @Volatile
+    var lastOrderAt: Long = 0L
+        private set
+
     fun addForeground(listener: ForegroundListener) {
         foregroundListeners.addIfAbsent(listener)
     }
@@ -40,10 +52,13 @@ object Signals {
     }
 
     fun emitForeground(packageName: String) {
+        lastForegroundPackage = packageName
         foregroundListeners.forEach { runCatching { it.onForeground(packageName) } }
     }
 
     fun emitOrder(order: ParsedOrder) {
+        lastOrder = order
+        lastOrderAt = System.currentTimeMillis()
         orderListeners.forEach { runCatching { it.onOrder(order) } }
     }
 }
